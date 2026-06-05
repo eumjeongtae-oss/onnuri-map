@@ -53,6 +53,11 @@ export const metadata: Metadata = {
     apple: '/icon-192x192.png',
   },
   manifest: '/manifest.json',
+  verification: {
+    other: {
+      'naver-site-verification': '9a75e37d1731e653c21af0fca503b15c807f193a',
+    },
+  },
 };
 
 export const viewport: Viewport = {
