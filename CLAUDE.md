@@ -32,9 +32,9 @@ npm run lint     # ESLint 검사
 |------|------|-----------|
 | `NEXT_PUBLIC_KAKAO_MAP_KEY` | 카카오맵 JavaScript App Key | 클라이언트 (필수) |
 | `WEATHER_API_KEY` | OpenWeatherMap API Key | 서버 전용 |
-| `PUBLIC_DATA_KEY` | 공공데이터포털 API Key (소상공인시장진흥공단) | 서버 전용 |
 
-> `WEATHER_API_KEY`와 `PUBLIC_DATA_KEY`는 Next.js API Route에서만 사용되므로 브라우저에 노출되지 않는다.
+> `WEATHER_API_KEY`는 Next.js API Route에서만 사용되므로 브라우저에 노출되지 않는다.
+> 가맹점 데이터는 공공 API가 아닌 `public/data/onnuri_final.json` 로컬 파일로 서빙한다. API 키 불필요.
 
 ## 폴더 구조
 
@@ -45,57 +45,80 @@ src/
     page.tsx                     # 홈 페이지 (KakaoApp 렌더링)
     providers.tsx                # QueryClientProvider (클라이언트 컴포넌트)
     api/
-      merchants/route.ts         # 가맹점 API Route (공공데이터포털 프록시)
+      merchants/route.ts         # 가맹점 API Route (로컬 JSON → BBox 필터링 후 페이지네이션 응답)
+      search/route.ts            # 카카오 장소 검색 API Route 프록시
       weather/route.ts           # 날씨 API Route (OpenWeatherMap 프록시)
-  pages/
+  lib/
+    merchantData.ts              # public/data/onnuri_final.json 로드 및 인메모리 캐시
+  views/
     home/
       HomePage.tsx               # 지도 + 사이드바/바텀시트 통합 페이지
       components/
         SearchBar/               # 검색창 (카카오 Geocoder 연동)
         FilterChips/             # 상품권 종류 필터 (지류/모바일/카드)
-        MerchantList/            # 현재 지도 영역 내 가맹점 리스트
+        MerchantList/            # 현재 검색 영역 내 가맹점 리스트
         MerchantCard/            # 가맹점 카드 (리스트 항목)
-        MerchantDetail/          # 가맹점 상세 패널 (선택 시 노출)
+        MerchantDetail/          # PC 사이드바 가맹점 상세 패널 (selectedMerchant 시 노출)
         WeatherWidget/           # 현재 위치 날씨 위젯
   components/
     KakaoApp.tsx                 # 카카오맵 로더 + 앱 루트 (클라이언트 컴포넌트)
     layout/
-      DesktopLayout.tsx          # 좌측 사이드바 + 우측 지도 (PC)
-      MobileLayout.tsx           # 전체 지도 + 플로팅 바 + 바텀시트 (Mobile)
+      DesktopLayout/             # 좌측 사이드바 + 우측 지도 (PC)
+      MobileLayout/              # 전체 지도 + 플로팅 바 + 바텀시트 (Mobile)
     map/
-      KakaoMap.tsx               # 카카오맵 래퍼 컴포넌트
-      MerchantMarker.tsx         # 가맹점 마커 (업종별 아이콘)
-      MarkerClusterer.tsx        # 마커 클러스터러
+      KakaoMap/                  # 카카오맵 래퍼 (onIdle → handleIdle, pendingMove 처리)
+      MerchantMarker/            # 단일 가맹점 마커
+      MerchantGroupMarker/       # 동일 좌표 가맹점 그룹 마커 (클릭 시 그룹 선택)
+      MerchantGroupPopup/        # PC용 그룹 팝업 (지도 위에 오버레이)
+      CurrentLocationMarker/     # 내 위치 파란 점 마커
+      CurrentLocationLabel/      # 현재 지역명 라벨
+      CenterPin/                 # 지도 중심 핀
+      MapLoadingIndicator/       # 데이터 로딩 중 표시
+      MyLocationButton/          # 내 위치로 이동 버튼
+      SearchHereButton/          # "현 지도에서 검색" 버튼 (hasUnsearchedChanges 시 노출)
+      ZoomWarningToast/          # 줌 레벨 경고 토스트
     ui/
       BottomSheet/               # 모바일 바텀시트 (스와이프 가능)
+      MerchantModal/             # 모바일용 가맹점 상세 모달
+      MerchantGroupModal/        # 모바일용 그룹 선택 모달
       Spinner/                   # 로딩 스피너
-      Toast/                     # 토스트 알림
       ErrorFallback/             # 에러 폴백 UI
+      Icons.tsx                  # SVG 아이콘 컴포넌트 모음
   styles/
     theme.css.ts                 # 디자인 토큰 — createGlobalTheme으로 CSS 변수 주입
     global.css.ts                # 전역 CSS 리셋 (globalStyle)
     common.css.ts                # 공용 스타일 유틸 (flexCenter, ellipsis 등)
   api/
-    merchants.ts                 # 가맹점 fetch 함수 (/api/merchants 호출)
+    merchants.ts                 # 가맹점 fetch 함수 (/api/merchants 호출, 페이지 자동 병합)
     weather.ts                   # 날씨 fetch 함수 (/api/weather 호출)
   hooks/
     queries/
-      useMerchantQueries.ts      # useMerchantsInBounds, useMerchantDetail
+      useMerchantQueries.ts      # useMerchantsInBounds (searchBounds/searchZoom 기반)
       useWeatherQueries.ts       # useCurrentWeather
     useGeolocation.ts            # Geolocation API 훅
-    useMapBounds.ts              # 카카오맵 Bounding Box 추출 훅
+    useMapBounds.ts              # onIdle 핸들러 — BBox 추출, URL 동기화, 검색 트리거 결정
+    useMapUrlSync.ts             # URL 쿼리 파라미터 ↔ 지도 상태 동기화
+    useMapAddress.ts             # 지도 중심 좌표 → 행정구역명 변환
+    useRegionMerchantSearch.ts   # 지역 기반 가맹점 검색 훅
     useDebounce.ts               # 검색 디바운스 훅
   store/
-    useMapStore.ts               # 지도 중심 좌표, 줌 레벨, 선택된 가맹점
+    useMapStore.ts               # 지도 상태 전체 관리 (center, zoom, bounds, searchBounds,
+                                 #   shouldAutoSearch, hasUnsearchedChanges, selectedMerchant,
+                                 #   selectedMerchantGroup, userLocation, pendingMove 등)
     useFilterStore.ts            # 상품권 필터 상태
   types/
-    merchant.ts                  # 가맹점 도메인 타입 (Merchant, MerchantType 등)
-    api.ts                       # 공공 API 응답 타입
+    merchant.ts                  # Merchant, RawMerchant, MerchantType 타입
+    api.ts                       # API Route 응답 타입
     kakao.ts                     # 카카오맵 관련 타입 보강
   utils/
     typeGuards.ts                # isOnnuriMerchant 등 타입 가드 함수
-    mapUtils.ts                  # BBox 계산, 좌표 변환 유틸
-    formatters.ts                # 전화번호 포매팅 등 순수 변환 함수
+    mapUtils.ts                  # BBox 계산, groupMerchantsByLocation 등
+    formatters.ts                # 순수 변환 함수
+  lib/
+    merchantData.ts              # (→ src/lib/merchantData.ts 참고)
+public/
+  data/
+    onnuri_final.json            # 전처리 완료된 가맹점 데이터 (서버에서 직접 읽음)
 ```
 
 ## Next.js App Router 핵심 규칙
@@ -110,54 +133,63 @@ src/
 | `src/app/page.tsx` | Server | KakaoApp을 렌더링하는 얇은 래퍼 |
 | `src/app/providers.tsx` | **Client** | QueryClient는 클라이언트에서 초기화 |
 | `src/components/KakaoApp.tsx` | **Client** | useKakaoLoader 사용 |
-| `src/pages/home/` 이하 전부 | **Client** | 훅, 카카오맵, 브라우저 API 사용 |
+| `src/views/home/` 이하 전부 | **Client** | 훅, 카카오맵, 브라우저 API 사용 |
 | `src/store/`, `src/hooks/` | **Client** | Zustand, TanStack Query, useEffect 등 |
 | `src/app/api/*/route.ts` | Server (Route Handler) | 외부 API 프록시 |
 
 **규칙:** 훅(`useState`, `useEffect` 등), 브라우저 API(`window`, `navigator`), 이벤트 핸들러를 사용하는 파일은 반드시 파일 최상단에 `'use client';` 선언.
 
-### API Route 프록시 구조
+### API Route 구조
 
-외부 API는 서버에서 호출해 CORS를 우회하고, API 키를 클라이언트에 노출하지 않는다.
+가맹점 데이터는 외부 API 없이 서버에서 로컬 JSON을 읽어 서빙한다. 날씨는 외부 API를 프록시한다.
 
 ```
-브라우저 → /api/merchants?minLat=...  →  Next.js Route Handler  →  apis.data.go.kr
+브라우저 → /api/merchants?minLat=...  →  Next.js Route Handler  →  public/data/onnuri_final.json (로컬)
 브라우저 → /api/weather?lat=...       →  Next.js Route Handler  →  api.openweathermap.org
 ```
 
-`src/api/merchants.ts`와 `src/api/weather.ts`는 항상 `/api/...` 상대 경로로 호출한다.
+- `src/lib/merchantData.ts`가 JSON 파일을 읽고 인메모리 캐시로 보관한다 (서버 재시작 전까지 유지).
+- `src/api/merchants.ts`는 여러 페이지를 병렬 fetch 후 중복 제거까지 처리한다.
+- `src/api/merchants.ts`와 `src/api/weather.ts`는 항상 `/api/...` 상대 경로로 호출한다.
 
 ## 반응형 레이아웃 전략
 
 vanilla-extract 미디어 쿼리로 레이아웃을 완전히 분리한다.
 
 **PC (≥ 768px)**
-- 구조: 좌측 고정 사이드바(380px) + 우측 전체 지도
-- 사이드바 상단: 검색창 + 날씨 위젯
-- 사이드바 하단: 현재 지도 영역 가맹점 리스트 (스크롤)
-- 리스트 클릭 → 지도 마커 포커스 이동
+- 구조: 좌측 고정 사이드바 + 우측 전체 지도
+- 사이드바 상단: 로고 + 검색창 + 날씨 위젯 + 필터칩
+- 사이드바 하단: 가맹점 리스트 (스크롤) / 선택 시 MerchantDetail로 전환
+- 마커 클릭 → MerchantGroupPopup (지도 위 오버레이), 단일이면 바로 MerchantDetail
 
 **Mobile (< 768px)**
-- 구조: 전체 화면 지도 + 상단 플로팅 바 + 하단 바텀시트
-- 플로팅 바: 검색창 + 날씨 위젯
-- 바텀시트: 가맹점 리스트 & 상세 정보 (스와이프로 열고 닫기)
+- 구조: 전체 화면 지도 + 상단 플로팅 바(검색 + 날씨 + 필터) + 하단 바텀시트
+- 마커 클릭 → MerchantGroupModal 또는 MerchantModal (전체 화면 모달)
 
 ## 데이터 파이프라인 (타입 안정성)
 
-공공 API 응답은 스키마가 불안정하므로 3단계 방어 로직을 반드시 유지한다.
+JSON 파일 데이터도 런타임 스키마가 신뢰 불가이므로 3단계 방어 로직을 반드시 유지한다.
+
+`RawMerchant` 실제 필드 (`src/types/merchant.ts`):
+- `name`, `lat`, `lng`, `address`, `category`, `market`, `sido`, `sigungu`
+- `paper`, `mobile`, `card` (boolean — 상품권 종류)
+- `location_type: 'ADDRESS' | null` — null이면 좌표 없음, 필터링 대상
+- `kakaoPlaceId?: string | null`
 
 ```ts
-// 1단계: unknown으로 수신
-const raw: unknown = await fetchMerchants(bounds);
+// 1단계: unknown으로 수신 (API Route 응답 items 배열)
+const raw: unknown[] = response.items;
 
-// 2단계: 타입 가드로 런타임 검증
+// 2단계: 타입 가드로 런타임 검증 (typeGuards.ts)
 function isOnnuriMerchant(value: unknown): value is RawMerchant {
   return (
     typeof value === 'object' &&
     value !== null &&
-    'bizNm' in value &&
-    'la' in value &&
-    'lo' in value
+    'name' in value &&
+    'lat' in value &&
+    'lng' in value &&
+    (value as RawMerchant).lat !== null &&
+    (value as RawMerchant).lng !== null
   );
 }
 
@@ -167,23 +199,49 @@ const merchants: Merchant[] = rawList.filter(isOnnuriMerchant).map(toMerchant);
 
 ## 카카오맵 연동 핵심 패턴
 
+### 검색 트리거 방식 — "현 지도에서 검색" 버튼
+
+지도 이동 시 자동으로 API 재요청하지 않는다. `useMapBounds`의 `handleIdle`이 `hasUnsearchedChanges: true`를 세팅하면 `SearchHereButton`이 노출되고, 사용자가 클릭할 때 `triggerSearch()`로 `searchBounds`를 갱신 → TanStack Query 재요청.
+
+예외: `shouldAutoSearch: true`인 경우(초기 로드, 내 위치 이동 등)에는 자동 검색.
+
 ```ts
-// 지도 이동 완료 시 BBox 업데이트 → TanStack Query 재요청 트리거
-const handleIdle = () => {
-  const bounds = map.getBounds();
-  setMapBounds({
-    sw: { lat: bounds.getSouthWest().getLat(), lng: bounds.getSouthWest().getLng() },
-    ne: { lat: bounds.getNorthEast().getLat(), lng: bounds.getNorthEast().getLng() },
-  });
+// useMapBounds.ts — handleIdle 요약
+const handleIdle = (map: kakao.maps.Map) => {
+  const bounds = extractBounds(map);
+  state.setBounds(bounds);
+  state.setDisplayCenter(center);
+  updateUrl(lat, lng, zoom);
+
+  if (state.shouldAutoSearch) {
+    state.setSearchBounds(bounds);   // → queryKey 변경 → TanStack Query 재요청
+    state.setShouldAutoSearch(false);
+  } else {
+    state.setHasUnsearchedChanges(true); // → SearchHereButton 노출
+  }
 };
 
-// 지역 검색: Geocoder로 좌표 변환 후 PanTo
+// triggerSearch() — SearchHereButton 클릭 시
+triggerSearch: () => set((s) => ({
+  searchBounds: s.bounds,
+  searchZoom: s.zoom,
+  hasUnsearchedChanges: false,
+}));
+```
+
+### 지역 검색 (Geocoder)
+
+```ts
 kakao.maps.services.geocoder.addressSearch(keyword, (result, status) => {
   if (status === kakao.maps.services.Status.OK) {
     map.panTo(new kakao.maps.LatLng(result[0].y, result[0].x));
   }
 });
 ```
+
+### 동일 좌표 그룹화
+
+같은 `lat/lng`를 가진 가맹점은 `groupMerchantsByLocation()`으로 묶어 `MerchantGroupMarker` 하나로 렌더링. 클러스터러 라이브러리 사용 안 함.
 
 ## URL 상태 동기화
 
@@ -242,7 +300,7 @@ function isOnnuriMerchant(value: unknown): value is RawMerchant { ... }
 
 - 컴포넌트: **PascalCase** (`MerchantCard.tsx`)
 - 훅: **camelCase** + `use` 접두사 (`useMapBounds.ts`)
-- 폴더명: **소문자** (`pages/home/components/`)
+- 폴더명: **소문자** (`views/home/components/`)
 - 파일명은 역할 명확히 표현 (`Page`, `Widget`, `Layout`, `Card` 접미사 활용)
 - API 호출은 컴포넌트에서 직접 하지 않고 `hooks/queries`, `hooks/mutations`를 통해 사용
 - 컴포넌트 내 비즈니스 로직은 커스텀 훅으로 분리
