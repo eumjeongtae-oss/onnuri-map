@@ -23,3 +23,10 @@ export const floatingBar = style({
   flexDirection: 'column',
   gap: vars.space.sm,
 });
+
+export const infoRow = style({
+  display: 'flex',
+  alignItems: 'center',
+  gap: vars.space.sm,
+  flexWrap: 'wrap',
+});

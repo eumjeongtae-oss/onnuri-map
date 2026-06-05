@@ -24,7 +24,10 @@ export const label = style({
 
   '@media': {
     '(max-width: 767px)': {
-      top: '90px', // 모바일에서는 검색바 아래쯤 위치하도록 조정
+      position: 'static',
+      transform: 'none',
+      display: 'inline-flex',
+      flex: 1, // 날씨 위젯과 함께 배치될 때 유연하게 공간 차지
     },
   },
 });

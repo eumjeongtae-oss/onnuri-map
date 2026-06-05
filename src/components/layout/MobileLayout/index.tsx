@@ -17,11 +17,13 @@ export function MobileLayout({ mapSlot }: MobileLayoutProps) {
       <div className={styles.mapArea}>
         {mapSlot}
         <MyLocationButton />
-        <CurrentLocationLabel />
       </div>
       <div className={styles.floatingBar}>
         <SearchBar />
-        <WeatherWidget />
+        <div className={styles.infoRow}>
+          <CurrentLocationLabel />
+          <WeatherWidget />
+        </div>
         <FilterChips />
       </div>
       <BottomSheet>

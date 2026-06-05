@@ -3,7 +3,7 @@ import { vars } from '@/styles/theme.css';
 
 export const button = style({
   position: 'absolute',
-  bottom: '100px', // 모바일 바텀시트 및 내 위치 버튼 위
+  bottom: 'calc(15vh + 16px)', // '내 위치' 버튼과 동일한 높이 선상
   left: '50%',
   transform: 'translateX(-50%)',
   zIndex: 10,
@@ -22,14 +22,15 @@ export const button = style({
   cursor: 'pointer',
   transition: 'all 0.2s ease',
 
-  ':hover': {
-    backgroundColor: vars.colors.primaryLight,
-    transform: 'translateX(-50%) translateY(-2px)',
-    boxShadow: vars.shadows.lg,
-  },
-  
-  ':active': {
-    transform: 'translateX(-50%) translateY(0)',
+  selectors: {
+    '&:hover': {
+      backgroundColor: vars.colors.primaryLight,
+      transform: 'translateX(-50%) translateY(-2px)',
+      boxShadow: vars.shadows.lg,
+    },
+    '&:active': {
+      transform: 'translateX(-50%) translateY(0)',
+    },
   },
 
   '@media': {
