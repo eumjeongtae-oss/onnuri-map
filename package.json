@@ -1,0 +1,36 @@
+{
+  "name": "onnuri-map",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.100.14",
+    "@vanilla-extract/css": "^1.20.1",
+    "@vanilla-extract/next-plugin": "^2.3.3",
+    "axios": "^1.16.1",
+    "csv-parser": "^3.2.1",
+    "dotenv": "^17.4.2",
+    "next": "^15.0.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-kakao-maps-sdk": "^1.2.1",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.0.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
+    "kakao.maps.d.ts": "^0.1.40",
+    "typescript": "~6.0.2"
+  }
+}
